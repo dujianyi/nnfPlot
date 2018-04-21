@@ -1,2 +1,4 @@
 # Ignore Microsoft Word document
+.DS_Store
+*.doc
 *.docx
