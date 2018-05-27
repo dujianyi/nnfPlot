@@ -165,7 +165,8 @@ classdef nnfPlot < handle
         AxisLineWidth
         XLabel       
         YLabel       
-        ZLabel                             
+        ZLabel 
+        LabelInt
         XTick        
         YTick        
         ZTick
@@ -209,7 +210,7 @@ classdef nnfPlot < handle
     
 
     % Private properties
-    properties (Access = private, Hidden)
+    properties
         
         % Handles
         hfig        % Figure
@@ -324,7 +325,6 @@ classdef nnfPlot < handle
             else
                 pdata = varargin;
             end
-            
             np = length(pdata);
             if np > 0
                 self.holdLines = false;
@@ -473,7 +473,11 @@ classdef nnfPlot < handle
         function removePlot(self, plotNum)
             if (plotNum > 0 && plotNum <= self.N)
                 delete(self.hp(plotNum));
-                self.hp = [self.hp(1:(plotNum-1)), self.hp((plotNum+1):length(self.hp))];
+                if (size(self.hp, 1) == 1)
+                    self.hp = [self.hp(1:(plotNum-1)), self.hp((plotNum+1):length(self.hp))];
+                else
+                    self.hp = [self.hp(1:(plotNum-1)); self.hp((plotNum+1):length(self.hp))];
+                end
                 self.updateData();
             else
                 error('Plot number exceeds the range');
@@ -490,10 +494,13 @@ classdef nnfPlot < handle
             if isnumeric(refFun)
                 yrange = ones(1, length(xrange))*refFun;
             else
+                %{
                 yrange = zeros(1, length(xrange));
                 for i = 1:length(xrange)
                     yrange(i) = refFun(xrange(i));
                 end
+                %}
+                yrange = refFun(xrange);
             end
             x = xrange';
             y = yrange';
@@ -516,10 +523,19 @@ classdef nnfPlot < handle
             self.addPlot(refXDataCol, refYDataCol, self.typeFig, 1, '--');
         end
         
-        function addError(self, plotNum, errorY)
+        function addError(self, plotNum, errorY, varargin)
             if plotNum > 0 && plotNum <= self.N
                 xData = self.xdata{plotNum};
                 yData = self.ydata{plotNum};
+                if (~isempty(varargin))
+                    range = varargin{1};
+                    frange = find(xData >= range(1) & xData <= range(2));
+                    xData = xData(frange);
+                    yData = yData(frange);
+                end
+                if length(errorY) == 1
+                    errorY = ones(1, length(xData))*errorY;
+                end
                 self.hp(end+1) = errorbar(xData, yData, errorY);
                 self.updateData();
                 tWidth = self.LineWidth;
@@ -593,7 +609,10 @@ classdef nnfPlot < handle
                             findNaN = isnan(yData);
                             xData(findNaN) = [];
                             yData(findNaN) = [];
-                            xParas = lsqcurvefit(fitFun, varargin{1}, xData, yData);
+                            lsqoptions = optimoptions('lsqcurvefit', ...
+                                                      'FiniteDifferenceType', 'central', ...
+                                                      'FunctionTolerance', 1e-8);
+                            xParas = lsqcurvefit(fitFun, varargin{1}, xData, yData);%[1e4], [5e5], lsqoptions);
                             paras = xParas;
                             % Output parameters
                             fprintf('Parameters are:\n')
@@ -715,11 +734,12 @@ classdef nnfPlot < handle
         
         function colMap(self, plotNum, cmap)
             cols = self.Colors;
-            colormap(cmap);
-            cols_map = colormap;
-            stride = size(cols_map, 1)/(length(plotNum)-1)-1;
+            % colormap(cmap);
+            % cols_map = colormap;
+            % stride = size(cols_map, 1)/(length(plotNum)-1)-1;
+            cols_map = cmap(length(plotNum));
             for i = 1:length(plotNum)
-                cols{plotNum(i)} = cols_map(round(1+(i-1)*stride), :);
+                cols{plotNum(i)} = cols_map(i, :);
             end
             self.Colors = cols;
         end
@@ -741,6 +761,23 @@ classdef nnfPlot < handle
                 set(self.hp(plotNum(i)), 'YData', yd*yScale(i));
             end
             self.updateData();
+        end
+        
+        function [avrval, stdval] = avergStd(self, plotNum, xrange)
+            if (plotNum > 0 && plotNum <= self.N)
+                xData = self.xdata{plotNum};
+                yData = self.ydata{plotNum};
+                frange = find(xData >= xrange(1) & xData <= xrange(2));
+                xData = xData(frange);
+                yData = yData(frange);
+                findNaN = isnan(yData);
+                xData(findNaN) = [];
+                yData(findNaN) = [];
+                avrval = mean(yData);
+                stdval = std(yData);
+            else
+                error('Plot number exceeds the range');
+            end
         end
         
         % Existing user functions
@@ -1010,6 +1047,15 @@ classdef nnfPlot < handle
         end
         function ZLabel = get.ZLabel(self)
             ZLabel = get(self.hzlabel, 'String');
+        end
+        
+        function set.LabelInt(self, LabelInt)
+            self.haxes.XLabel.Interpreter = LabelInt;
+            self.adjustBoxDim();
+        end
+        
+        function LabelInt = get.LabelInt(self)
+            LabelInt = self.haxes.XLabel.Interpreter;
         end
 
         function set.XTick(self, XTick)

@@ -5,3 +5,5 @@ function dia = funcFit_CaBER_linear(parasNum, t)
 dia = 0.0707*2*parasNum(1)*(parasNum(2)-t);
 end
 
+
+

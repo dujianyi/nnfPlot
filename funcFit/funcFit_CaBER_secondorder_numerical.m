@@ -1,0 +1,45 @@
+function dia = funcFit_CaBER_secondorder_numerical(parasNum, t, constNum)
+% funcFit: CaBER second order ode45, only used starting from 0 (change XLim accordingly)
+% dia - mm
+% t = ms
+% parameters: b11-b2, t_c
+% constants: b1 (Pa s), gamma (N/m), d0 (mm)
+
+% ------- user input -------
+%{
+constNum = [0.138, (23.7e-3)/0.707, ];
+t0 = 40/1000;
+r0 = 1.541e-3/2;
+%}
+
+% ------- no need to modify -------
+b1 = parasNum(1);
+b112 = parasNum(2);
+
+gamma = constNum(1);
+r0 = constNum(2)/2000;
+
+dydt = @(t, y, gamma, b1, b112) (6*b1*y - sqrt(36*b1^2*y^2+48*b112*gamma*y))/(24*b112);
+
+tspan = [0, (max(t))/1000];
+
+opts = odeset('RelTol', 1e-5, 'AbsTol', 1e-7);
+sol = ode45(@(t, y) dydt(t, y, gamma, b1, b112), tspan, r0, opts);
+
+dia = deval(sol, (t-min(t))/1000)*2000;
+
+%{
+dR = [];
+for i = 1:length(R)
+    dR(i) = dydt(t(i), R(i), gamma, b1, b112);
+end
+dR = dR;
+sr = -2*dR./R;
+ext_eta1 = gamma./(-2*dR);
+ext_eta2 = 3*b1 + 3*(b112)*sr;
+rel_t = b112/b1;
+%}
+end
+
+
+
