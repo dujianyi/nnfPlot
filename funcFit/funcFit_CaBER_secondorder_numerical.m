@@ -3,7 +3,7 @@ function dia = funcFit_CaBER_secondorder_numerical(parasNum, t, constNum)
 % dia - mm
 % t = ms
 % parameters: b11-b2, t_c
-% constants: b1 (Pa s), gamma (N/m), d0 (mm)
+% constants: gamma (N/m), d0 (mm)
 
 % ------- user input -------
 %{

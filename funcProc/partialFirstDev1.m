@@ -1,6 +1,7 @@
-function varargout = partialFirstDev(x, y, odp, typeFig, varargin)
+function varargout = partialFirstDev1(x, y, odp, typeFig, varargin)
+% partialFirstDev1: polynomial fitting of whole range
 % funcProc: apparent fitting
-% inpuits:
+% inputs:
 % x, y, odp - order of polynomials, typeFig - figure type
 % outputs:
 % fitting parameters, 0-th order y, 1-st order y
@@ -49,6 +50,14 @@ if (isnumeric(odp) && odp > 0)
             varargout{2} = 10.^polyval(varargout{1}, log10(x));
             varargout{3} = polyval(varargout{1}, log10(x)).*varargout{2}./x;
     end
+    
+    plot(toFitX, toFitY, 'o', x, varargout{2}, '-')
+    if (~isempty(varargin))
+        xlim(varargin{1});
+    end
+    
+    varargout{2} = varargout{2};
+    varargout{3} = varargout{3};
 
 end    
 

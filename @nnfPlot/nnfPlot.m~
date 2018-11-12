@@ -158,7 +158,7 @@ classdef nnfPlot < handle
         LineStyle
         LineCount
         Markers
-        % MarkerSpacing
+        MarkerSpacing
         SkippedPoint
         Colors
         AxisColor
@@ -210,7 +210,8 @@ classdef nnfPlot < handle
     
 
     % Private properties
-    properties
+    % properties
+    properties (Hidden, Access = private)
         
         % Handles
         hfig        % Figure
@@ -375,412 +376,36 @@ classdef nnfPlot < handle
             end
         end
         
-        % Newly added     
-        function labl = generatedLabel(self, DataCol)
-            if (isempty(DataCol.unit))
-                labl = DataCol.vName;
-            else
-                labl = [DataCol.vName, ' [', DataCol.unit, ']'];
-            end
-        end
+        % functions
+        generatedLabel(self, DataCol);
+        updateData(self);
+        addTable(self, tData, xcol, ycol);
+        addPlot(self, X, Y, typeFig, varargin);
+        subData(self, plotNum, x, y);
+        removePlot(self, plotNum);
+        replaceLine(self, oldLine, newLine);
+        [x, y] = addRefLine(self, refFun, varargin);
+        [x, y] = addRefLineY(self, xValue, varargin);
+        fillAroundLine(self, plotnum, x, uperror, lwerror);
+        addError(self, plotNum, errorY, varargin);
+        axAdded = addSecondaryAxis(self, XYAxis, AxisLim, AxisLog, AxisLabel);
+        allErrorProps(self, csize, lwidth);
+        paras = addFitLine(self, plotNum, fitFun, varargin);
+        allHideLines(self);
+        markersRandom(self);
+        reorderPlots(self, reorder);
+        bringToFront(self, plotNum);
+        batchWidth(self, plotNum, widthset);
+        batchStyle(self, plotNum, styleset);
+        batchMarker(self, plotNum, markerset);
+        batchCol(self, plotNum, colset);
+        colMap(self, plotNum, cmap);
+        [x, y] = extData(self, plotNum);
+        scaleData(self, plotNum, xScale, yScale);
+        [avrval, stdval] = avergStd(self, plotNum, xrange);
+        changeLogAxis(self, axisN, varargin);
         
-        function updateData(self)
-            self.N = length(self.hp);
-            self.xdata = {};
-            self.ydata = {};
-            self.zdata = {};
-            
-            % resort errorbar data to put them at the end
-            if (self.N > 1 && strcmp(get(self.hp(end), 'Type'), 'line'))
-                tmp = self.hp(end);
-                ii = self.N - 1;
-                while (ii > 0 && strcmp(get(self.hp(ii), 'Type'), 'errorbar'))
-                    self.hp(ii + 1) = self.hp(ii);
-                    ii = ii - 1;
-                end
-                self.hp(ii+1) = tmp;
-            end
-                
-            % save data;
-            try 
-                % get the self data
-                for ip = 1:self.N
-                    self.xdata{ip} = get(self.hp(ip),'XData');
-                    self.ydata{ip} = get(self.hp(ip),'YData');
-                    self.zdata{ip} = get(self.hp(ip),'ZData');
-                end
-            catch e
-                warning('Unable to get data from all axes: %s', e.message);
-            end
-        end
-        
-        function addTable(self, tData, xcol, ycol)
-            if (isnumeric(xcol) && length(xcol) == 1)
-                dataCol = tData.Variables;
-                if (~isnumeric(dataCol))
-                    dataCol = double(dataCol);
-                end
-                typeFig = self.typeFig;
-                for i = 1:length(ycol)
-                    % 4/20/2018: Add NaN processing 
-                    xData = dataCol(:, xcol);
-                    if (~isnumeric(xData))
-                        xData(find(ismissing(xData))) = '';
-                        xData = str2double(xData);
-                    end
-                    
-                    yData = dataCol(:, ycol(i));
-                    if (~isnumeric(yData))
-                        yData(find(ismissing(yData))) = '';
-                        yData = str2double(yData);
-                    end
-                    self.addPlot(xData, yData, typeFig);
-                end
-            else
-                error('There can only be one column data of x!')
-            end
-        end
-        
-        function addPlot(self, X, Y, typeFig, varargin)
-            if ~isempty(self.haxes)
-                hold(self.haxes, 'on');
-            end
-            if (~exist('typeFig'))
-                typeFig = self.typeFig;
-            end
-            self.N = self.N + 1;
-            self.hp(end+1) = feval(typeFig, X, Y);
-            tWidth = self.LineWidth;
-            tStyle = self.LineStyle;
-            if (isempty(varargin))
-                tWidth(end) = 2.5;
-                tStyle{end} = '-';
-            else
-                tWidth(end) = varargin{1};
-                tStyle{end} = varargin{2};
-            end
-            self.LineWidth = tWidth;
-            self.LineStyle = tStyle;
-            self.updateData();
-        end
-        
-        function subData(self, plotNum, x, y);
-            set(self.hp(plotNum), 'XData', self.xdata{plotNum}+x);
-            set(self.hp(plotNum), 'YData', self.ydata{plotNum}+y);
-            self.updateData();
-        end
-
-        function removePlot(self, plotNum)
-            if (plotNum > 0 && plotNum <= self.N)
-                delete(self.hp(plotNum));
-                if (size(self.hp, 1) == 1)
-                    self.hp = [self.hp(1:(plotNum-1)), self.hp((plotNum+1):length(self.hp))];
-                else
-                    self.hp = [self.hp(1:(plotNum-1)); self.hp((plotNum+1):length(self.hp))];
-                end
-                self.updateData();
-            else
-                error('Plot number exceeds the range');
-            end
-        end
-        
-        
-        function [x, y] = addRefLine(self, refFun, varargin)
-            xlimRange = self.XLim;
-            xrange = linspace(xlimRange(1), xlimRange(2), 100);
-            if nargin > 2
-                xrange = varargin{1};
-            end
-            if isnumeric(refFun)
-                yrange = ones(1, length(xrange))*refFun;
-            else
-                %{
-                yrange = zeros(1, length(xrange));
-                for i = 1:length(xrange)
-                    yrange(i) = refFun(xrange(i));
-                end
-                %}
-                yrange = refFun(xrange);
-            end
-            x = xrange';
-            y = yrange';
-            refXDataCol = xrange;
-            refYDataCol = yrange;
-            self.addPlot(refXDataCol, refYDataCol, self.typeFig, 1, '--');
-        end
-        
-        function [x, y] = addRefLineY(self, xValue, varargin)
-            ylimRange = self.YLim;
-            yrange = linspace(ylimRange(1), ylimRange(2), 100);
-            if nargin > 2
-                yrange = varargin{1};
-            end
-            xrange = ones(1, length(yrange))*xValue;
-            x = xrange';
-            y = yrange';
-            refXDataCol = xrange;
-            refYDataCol = yrange;
-            self.addPlot(refXDataCol, refYDataCol, self.typeFig, 1, '--');
-        end
-        
-        function addError(self, plotNum, errorY, varargin)
-            if plotNum > 0 && plotNum <= self.N
-                xData = self.xdata{plotNum};
-                yData = self.ydata{plotNum};
-                if (~isempty(varargin))
-                    range = varargin{1};
-                    frange = find(xData >= range(1) & xData <= range(2));
-                    xData = xData(frange);
-                    yData = yData(frange);
-                end
-                if length(errorY) == 1
-                    errorY = ones(1, length(xData))*errorY;
-                end
-                self.hp(end+1) = errorbar(xData, yData, errorY);
-                self.updateData();
-                tWidth = self.LineWidth;
-                tWidth(end) = tWidth(plotNum);
-                self.LineWidth = tWidth;
-                tStyle = self.LineStyle;
-                tStyle{end} = 'none';
-                self.LineStyle = tStyle;
-                tColors = self.Colors;
-                tColors{end} = tColors{plotNum};
-                self.Colors = tColors;
-            else
-            	error('Plot number exceeds the range');
-            end
-        end
-                
-        function allErrorProps(self, csize, lwidth)
-            for i = 1:self.N
-                if strcmp(get(self.hp(i), 'Type'), 'errorbar')
-                    set(self.hp(i), 'CapSize', csize);
-                    set(self.hp(i), 'LineWidth', lwidth);
-                end
-            end
-        end
-        
-        % used when addFitLine does not work as you expect
-        
-        function paras = addFitLine(self, plotNum, fitFun, varargin)
-            ploton = 1;
-            paras = 0;
-            if plotNum > 0 && plotNum <= self.N
-                if isnumeric(fitFun)
-                    xData = self.xdata{plotNum};
-                    yData = self.ydata{plotNum};
-                    if (~isempty(varargin))
-                        range = varargin{1};
-                        frange = find(xData >= range(1) & xData <= range(2));
-                        xData = xData(frange);
-                        yData = yData(frange);
-                    end
-                    findNaN = isnan(yData);
-                    xData(findNaN) = [];
-                    yData(findNaN) = [];
-                    fFun = polyfit(xData, yData, fitFun);
-                    paras = fFun;
-                    % Output fFun
-                    fprintf('y=');
-                    for i = 1:length(fFun)-1
-                        fprintf('(%f x^%d)+', fFun(i), length(fFun)-i);
-                    end
-                    fprintf('(%f)\n', fFun(end));
-                    % END OF Output fFun
-                    if (ploton)
-                        xlim = self.XLim;
-                        xfitData = linspace(xlim(1), xlim(2), 1000);
-                        yfitData = polyval(fFun, xfitData);
-                        datacol_xfitData = xfitData;
-                        datacol_yfitData = yfitData;
-                        self.addPlot(datacol_xfitData, datacol_yfitData, self.typeFig);
-                    end
-                elseif isa(fitFun, 'function_handle')
-                        if (~isempty(varargin))
-                            xData = self.xdata{plotNum};
-                            yData = self.ydata{plotNum};
-                            if (length(varargin) == 2)
-                                range = varargin{2};
-                                frange = find(xData >= range(1) & xData <= range(2));
-                                xData = xData(frange);
-                                yData = yData(frange);
-                            end
-                            findNaN = isnan(yData);
-                            xData(findNaN) = [];
-                            yData(findNaN) = [];
-                            lsqoptions = optimoptions('lsqcurvefit', ...
-                                                      'FiniteDifferenceType', 'central', ...
-                                                      'FunctionTolerance', 1e-8);
-                            xParas = lsqcurvefit(fitFun, varargin{1}, xData, yData);%[1e4], [5e5], lsqoptions);
-                            paras = xParas;
-                            % Output parameters
-                            fprintf('Parameters are:\n')
-                            for i = 1:(length(xParas)-1)
-                                fprintf('%f\t', xParas(i))
-                            end
-                            fprintf('%f\n', xParas(end))
-                            if (ploton)
-                                xlim = self.XLim;
-                                xfitData = linspace(xlim(1), xlim(2), 1000);
-                                yfitData = fitFun(xParas, xfitData);
-                                datacol_xfitData = xfitData;
-                                datacol_yfitData = yfitData;
-                                self.addPlot(datacol_xfitData, datacol_yfitData, self.typeFig);
-                            end
-                        else
-                            error('No inital values are given for the parameters')
-                        end
-                else
-                    error('No explicit form of fit function')
-                end
-            else
-                error('Plot number exceeds the range');
-            end
-        end
-        
-        function allHideLines(self)
-            tLineS = self.LineStyle;
-            for i = 1:self.N
-                if strcmp(get(self.hp(i), 'Type'), 'line')
-                    tLineS{i} = 'none';
-                end
-            end
-            self.LineStyle = tLineS;
-        end
-        
-        function markersRandom(self)
-            tMarkers = self.Markers;
-            libMarkers = {'*s', '*o', '*^', '*v'};
-            for i = 1:self.N
-                if strcmp(get(self.hp(i), 'Type'), 'line')
-                    tMarkers{i} = libMarkers{mod(i-1, length(libMarkers))+1};
-                end
-            end
-            self.Markers = tMarkers;
-        end
-        
-        
-        function reorderPlots(self, reorder)
-            temphp = self.hp;
-            for i = 1:self.N
-                % delete(self.hp{i});
-                self.hp(i) = temphp(reorder(i));
-            end
-            set(self.haxes, 'Children', flipud(self.hp));
-            self.updateData();
-        end
-        
-        function bringToFront(self, plotNum)
-        	if (plotNum > 0 && plotNum <= self.N)
-                uistack(self.hp(plotNum), 'top');
-            else
-                error('Plot number exceeds the range');
-            end
-        end
-        
-        function batchWidth(self, plotNum, widthset)
-            widths = self.LineWidth;
-            if (~isnumeric(widthset))
-                widToSet = widths(str2num(widthset));
-            else
-                widToSet = widthset;
-            end
-            for i = 1:length(plotNum)
-                widths(plotNum(i)) = widToSet;
-            end
-            self.LineWidth = widths;
-        end
-        
-        function batchStyle(self, plotNum, styleset)
-            stls = self.LineStyle;
-            if (isnumeric(styleset))
-                styleToSet = stls(styleset);
-            else
-                styleToSet = styleset;
-            end
-            for i = 1:length(plotNum)
-                stls{plotNum(i)} = styleToSet;
-            end
-            self.LineStyle = stls;
-        end
-      
-        function batchMarker(self, plotNum, markerset)
-            markers = self.Markers;
-            if (isnumeric(markerset))
-                markerToSet = markers(markerset);
-            else
-                markerToSet = markerset;
-            end
-            for i = 1:length(plotNum)
-                markers{plotNum(i)} = markerToSet;
-            end
-            self.Markers = markers;
-        end
-        
-        function batchCol(self, plotNum, colset)
-            cols = self.Colors;
-            if (length(colset) == 1)
-                colToSet = cols{colset};
-            else
-                colToSet = colset;
-            end
-            for i = 1:length(plotNum)
-                cols{plotNum(i)} = colToSet;
-            end
-            self.Colors = cols;
-        end
- 
-        
-        function colMap(self, plotNum, cmap)
-            cols = self.Colors;
-            % colormap(cmap);
-            % cols_map = colormap;
-            % stride = size(cols_map, 1)/(length(plotNum)-1)-1;
-            cols_map = cmap(length(plotNum));
-            for i = 1:length(plotNum)
-                cols{plotNum(i)} = cols_map(i, :);
-            end
-            self.Colors = cols;
-        end
-        
-        function [x, y] = extData(self, plotNum)
-            if (plotNum < 1 || plotNum > self.N)
-                error('Plot number exceeds the range');
-            else
-                x = self.xdata{plotNum};
-                y = self.ydata{plotNum};
-            end
-        end
-        
-        function scaleData(self, plotNum, xScale, yScale)
-            for i = 1:length(plotNum)
-                xd = get(self.hp(plotNum(i)), 'XData');
-                set(self.hp(plotNum(i)), 'XData', xd*xScale(i)); 
-                yd = get(self.hp(plotNum(i)), 'YData');
-                set(self.hp(plotNum(i)), 'YData', yd*yScale(i));
-            end
-            self.updateData();
-        end
-        
-        function [avrval, stdval] = avergStd(self, plotNum, xrange)
-            if (plotNum > 0 && plotNum <= self.N)
-                xData = self.xdata{plotNum};
-                yData = self.ydata{plotNum};
-                frange = find(xData >= xrange(1) & xData <= xrange(2));
-                xData = xData(frange);
-                yData = yData(frange);
-                findNaN = isnan(yData);
-                xData(findNaN) = [];
-                yData(findNaN) = [];
-                avrval = mean(yData);
-                stdval = std(yData);
-            else
-                error('Plot number exceeds the range');
-            end
-        end
-        
-        % Existing user functions
+        %% Existing user functions
         function set.typeFig(self, tFig)
             switch tFig
                 case 'plot'
@@ -909,8 +534,9 @@ classdef nnfPlot < handle
             tLineS = self.LineStyle;
             tMarkers = self.Markers;
             tColors = self.Colors;
+            fprintf('No.\tType\tStyle\tMarker\tColor\n');
             for i = 1:self.N
-                fprintf('%d. %s\t%s\t%s\t(%s)\n', i, get(self.hp(i), 'Type'), tLineS{i}, tMarkers{i}, num2str(tColors{i}));
+                fprintf('%d.\t%s\t%s\t%s\t(%s)\n', i, get(self.hp(i), 'Type'), tLineS{i}, tMarkers{i}, num2str(tColors{i}));
             end
         end
 
@@ -954,7 +580,6 @@ classdef nnfPlot < handle
                 end
             end
         end
-        
         function Markers = get.Markers(self)
             Markers = cell(1, self.N);
             for ii = 1:self.N
@@ -964,6 +589,8 @@ classdef nnfPlot < handle
                 end
             end
         end
+        
+        function set.MarkerSpacing(self, )
         
         function set.SkippedPoint(self, SkippedPoint)
             if self.holdLines == false
@@ -1026,7 +653,11 @@ classdef nnfPlot < handle
         end
         
         function set.XLabel(self, XLabel)
-            set(self.hxlabel, 'String', XLabel);
+            if iscell(XLabel)
+                set(self.hxlabel, 'String', ['$', XLabel{1}, '$ $[\mathrm{', XLabel{2}, '}$]'], 'Interpreter', 'latex');
+            else
+                set(self.hxlabel, 'String', XLabel, 'Interpreter', 'latex');
+            end
             self.adjustBoxDim();
         end
         function XLabel = get.XLabel(self)
@@ -1034,7 +665,11 @@ classdef nnfPlot < handle
         end
 
         function set.YLabel(self, YLabel)
-            set(self.hylabel, 'String', YLabel);
+            if iscell(YLabel)
+                set(self.hylabel, 'String', ['$', YLabel{1}, '$ $[\mathrm{', YLabel{2}, '}$]'], 'Interpreter', 'latex');
+            else
+                set(self.hylabel, 'String', YLabel, 'Interpreter', 'latex');
+            end
             self.adjustBoxDim();
         end
         function YLabel = get.YLabel(self)
@@ -1042,7 +677,11 @@ classdef nnfPlot < handle
         end
         
         function set.ZLabel(self, ZLabel)
-            set(self.hzlabel, 'String', ZLabel);
+            if iscell(ZLabel)
+                set(self.hzlabel, 'String', ['$', ZLabel{1}, '$ $[\mathrm{', ZLabel{2}, '}$]'], 'Interpreter', 'latex');
+            else
+                set(self.hzlabel, 'String', ZLabel, 'Interpreter', 'latex');
+            end
             self.adjustBoxDim();
         end
         function ZLabel = get.ZLabel(self)
@@ -1052,8 +691,7 @@ classdef nnfPlot < handle
         function set.LabelInt(self, LabelInt)
             self.haxes.XLabel.Interpreter = LabelInt;
             self.adjustBoxDim();
-        end
-        
+        end  
         function LabelInt = get.LabelInt(self)
             LabelInt = self.haxes.XLabel.Interpreter;
         end
@@ -1252,26 +890,40 @@ classdef nnfPlot < handle
             ZDir = get(self.haxes, 'ZDir');
         end   
         
-        
-        function set.Legend(self, Legend)
-            allWleg = findobj(self.haxes, 'Type', 'Line');
-            self.hlegend = legend(flipud(allWleg), Legend{:});
+        function set.Legend(self, inputLeg)
+            % allWleg = findobj(self.haxes, 'Type', 'Line');
+            if (length(inputLeg) == 3) && isnumeric(inputLeg{2})
+                preFix = inputLeg{1};
+                sufFix = inputLeg{3};
+                numIter = inputLeg{2};
+                Legend = {};
+                for i = 1:length(numIter)
+                    Legend{i} = [preFix, num2str(numIter(i)), sufFix];
+                end
+            else
+                Legend = inputLeg;
+            end
+            allWleg = [];
+            for ii = 1:self.N
+                if (strcmp(self.hp(ii).Type, 'line'))
+                    allWleg(end+1) = self.hp(ii);
+                end
+            end
+            self.hlegend = legend((allWleg), Legend{:});
+            self.hlegend.Box = 'off';
             % set(self.hlegend, 'Box', self.legendBox);
             % set(self.hlegend, 'Color', self.legendBoxColor);
             % set(self.hlegend, 'TextColor', self.legendTextColor);
-        end
-        
+        end     
         function Legend = get.Legend(self)
             Legend = get(self.haxes, 'legend');
             Legend = get(Legend, 'string');
         end
         
-        
         function set.LegendBox(self, LegendBox)
             if isempty(self.hlegend)
                 self.hlegend = self.findLegendHandle();
-            end
-            
+            end  
             if ~isempty(self.hlegend)
                 set(self.hlegend, 'Box', LegendBox);
             end
@@ -1385,10 +1037,16 @@ classdef nnfPlot < handle
         end
         
         % save to disk
-        function export(self, FileName)
-            fileType = strread(FileName, '%s', 'delimiter', '.');
-            fileType = fileType(end);
-
+        function export(self, varargin)
+            if (~isempty(varargin))
+                FileName = varargin{1};
+                fileType = strread(FileName, '%s', 'delimiter', '.');
+                fileType = fileType(end);
+            else
+                FileName = strread(self.figName, '%s', 'delimiter', '.');
+                FileName = FileName{1};
+                fileType = 'eps';
+            end
             if strcmpi(fileType, 'eps')
                 print(self.hfig, '-depsc2', FileName);
                 vers = version();
@@ -1418,9 +1076,9 @@ classdef nnfPlot < handle
         
         function saveToFig(self, varargin)
             confirmAns = questdlg('Saving will overwrite old .fig file ... Continue?', ...
-                         'Confirmation', ...
-                         'Yes', 'No', 'Yes');
-            if confirmAns == 'Yes'
+                                  'Confirmation', ...
+                                  'Yes', 'No', 'Yes');
+            if strcmp(confirmAns, 'Yes')
                 if isempty(varargin)
                     savefig(self.hfig, self.figName);
                 else
@@ -1429,7 +1087,6 @@ classdef nnfPlot < handle
                 end
             end
         end
-        
     end
     
     methods(Hidden, Access = private)
