@@ -1,4 +1,4 @@
-function [t_all, d, SR, extVis] = hookeanDBanalytical(tFin, D0, lambda, etaS, gamma)
+function [t_all, d, SR, extVis] = hookeanDBanalytical_CaBER(tFin, D0, lambda, etaS, gamma)
 % Calcualte Hookean DB with the form of
 % -[3*etaS*(D-D0)+3*lambda*gamma*ln(D/D0)]=gamma*t
 syms f(D, t);

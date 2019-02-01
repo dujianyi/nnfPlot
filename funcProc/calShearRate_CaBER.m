@@ -1,4 +1,4 @@
-function varargout = calShearRate(t, d, sigma, ord, plum)
+function varargout = calShearRate_CaBER(t, d, sigma, ord, plum)
 % calShearRate: program to calculate the shear rate from experimental raw
 % data suing Savitzky-Golay filter
 % input: t(Nx1), d(Nx1), sigma (surface tension for ext. vis.), (sg-filter parameters) ord, nplum
@@ -8,7 +8,7 @@ function varargout = calShearRate(t, d, sigma, ord, plum)
 
 % Get rid of nan data in x
 toFitx = t(2:end); % First data is nan
-toFitx = toFitx(1)+(0:(length(toFitx)-1))*(toFitx(2)-toFitx(1));
+toFitx = toFitx(1)+(0:(length(toFitx)-1))*mean(diff(toFitx));
 toFity = d(2:end);
 locNaNX = find(isnan(toFitx));
 
@@ -23,41 +23,42 @@ end
 % Smoothen nan data in y
 % algorithm: interpret with the left and right point
 locNaN = find(isnan(toFity));
+if (~isempty(locNaN))
+    iLastNaN = length(locNaN);
+    while (iLastNaN > 1 && (locNaN(iLastNaN-1) == locNaN(iLastNaN) - 1))
+        iLastNaN = iLastNaN - 1;
+    end
+    iLastNaN
+    if (iLastNaN == 1)
+        error('Check d data: too many nans...')
+    end
+    toFitx = toFitx(1:(locNaN(iLastNaN)-1));
+    toFity = toFity(1:(locNaN(iLastNaN)-1));
+    toFity_cp = toFity;
 
-iLastNaN = length(locNaN);
-while (iLastNaN > 1 && (locNaN(iLastNaN-1) == locNaN(iLastNaN) - 1))
-    iLastNaN = iLastNaN - 1;
-end
-iLastNaN
-if (iLastNaN == 1)
-    error('Check d data: too many nans...')
-end
-toFitx = toFitx(1:(locNaN(iLastNaN)-1));
-toFity = toFity(1:(locNaN(iLastNaN)-1));
-toFity_cp = toFity;
+    for i = 1:(iLastNaN-1)
+        nowNaN = locNaN(i);
+        nowX = toFitx(nowNaN);
+        leftClear = i;
+        while (leftClear > 1 && locNaN(leftClear-1) == locNaN(leftClear) - 1)
+           leftClear = leftClear - 1; 
+        end
 
-for i = 1:(iLastNaN-1)
-    nowNaN = locNaN(i);
-    nowX = toFitx(nowNaN);
-    leftClear = i;
-    while (leftClear > 1 && locNaN(leftClear-1) == locNaN(leftClear) - 1)
-       leftClear = leftClear - 1; 
+        rightClear = i;
+        while (rightClear < iLastNaN-1 && locNaN(rightClear+1) == locNaN(rightClear) + 1)
+           rightClear = rightClear + 1; 
+        end
+
+        if (locNaN(leftClear) == 1 || locNaN(rightClear) == length(toFity))
+            error('End NaN, unable to interpret...');
+        end
+        endPtx = toFitx([locNaN(leftClear)-1, locNaN(rightClear)+1]);
+        endPty = toFity([locNaN(leftClear)-1, locNaN(rightClear)+1]);
+
+        toFity_cp(nowNaN) = (endPty(2) - endPty(1)) / (endPtx(2) - endPtx(1)) * (nowX - endPtx(1)) + endPty(1);
     end
-    
-    rightClear = i;
-    while (rightClear < iLastNaN-1 && locNaN(rightClear+1) == locNaN(rightClear) + 1)
-       rightClear = rightClear + 1; 
-    end
-    
-    if (locNaN(leftClear) == 1 || locNaN(rightClear) == length(toFity))
-        error('End NaN, unable to interpret...');
-    end
-    endPtx = toFitx([locNaN(leftClear)-1, locNaN(rightClear)+1]);
-    endPty = toFity([locNaN(leftClear)-1, locNaN(rightClear)+1]);
-    
-    toFity_cp(nowNaN) = (endPty(2) - endPty(1)) / (endPtx(2) - endPtx(1)) * (nowX - endPtx(1)) + endPty(1);
+    toFity = toFity_cp;
 end
-toFity = toFity_cp;
 
 
 % Use sg-filter

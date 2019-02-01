@@ -21,14 +21,12 @@ r0 = constNum(2)/2000;
 
 dydt = @(t, y, gamma, b1, b112) (6*b1*y - sqrt(36*b1^2*y^2+48*b112*gamma*y))/(24*b112);
 
-tspan = [0, (max(t))/1000];
+tspan = [0, (max(t))/1000]
 
-opts = odeset('RelTol', 1e-9, 'AbsTol', 1e-12);
+opts = odeset('RelTol', 1e-5, 'AbsTol', 1e-7);
 sol = ode45(@(t, y) dydt(t, y, gamma, b1, b112), tspan, r0, opts);
+
 dia = deval(sol, (t-min(t))/1000)*2000;
-% dia(9800)
-% dia = abs(dia);
-% max(dia)
 %{
 dR = [];
 for i = 1:length(R)

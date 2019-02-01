@@ -1,4 +1,4 @@
-function varargout = calGPC(mdata, ridata, mlow, mhigh)
+function varargout = calGPC_GPC(mdata, ridata, mlow, mhigh)
 % calGPC: program to calculate the Mn and Mw according to the GPC output, 
 % calibration is needed on the log M data, but normalization is not necessary for RI data.
 

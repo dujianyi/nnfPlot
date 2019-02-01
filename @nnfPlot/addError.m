@@ -23,12 +23,13 @@ function addError(self, plotNum, errorY, varargin)
                 self.hp(end+1) = errorbar(xData, yData, errorYData(:, 1), errorYData(:, 2), 'horizontal');
             end
         else
-            if (size(errorData, 1) == 1)
+            if (size(errorYData, 1) == 1)
                 self.hp(end+1) = errorbar(xData, yData, errorYData);
             else
                 self.hp(end+1) = errorbar(xData, yData, errorYData(1, :), errorYData(2, :));
             end
         end
+        self.hp
         self.updateData();
         tWidth = self.LineWidth;
         tWidth(end) = tWidth(plotNum);

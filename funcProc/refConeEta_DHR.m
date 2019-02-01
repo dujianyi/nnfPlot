@@ -1,4 +1,4 @@
-function eta = refConeEta(sr, R, T)
+function eta = refConeEta_DHR(sr, R, T)
 % funcFit: CaBER exponential
 % dia - mm
 % t = ms

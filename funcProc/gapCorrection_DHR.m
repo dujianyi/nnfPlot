@@ -1,4 +1,4 @@
-function varargout = gapCorrection(stressData, srData, gap, nStress)
+function varargout = gapCorrection_DHR(stressData, srData, gap, nStress)
 % funcProc: gap correction to find the viscosity getting rid of wall slip
 % inputs:
 % {stressData}, {visData}, gap [um]

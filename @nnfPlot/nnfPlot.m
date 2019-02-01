@@ -104,14 +104,14 @@ classdef nnfPlot < handle
 % ----------------------------------------------------------------------
 
 
-    methods (Hidden, Access = private)
+    methods (Hidden)
         function setDefaultProperties(plot)
             % Default properties. Change to your taste.
             plot.typeFig         = 'plot';
             plot.BoxDim          = [6, 4];  
             plot.ShowBox         = 'on';
             plot.FontName        = 'Arial'; 
-            plot.FontSize        = 20;
+            plot.FontSize        = 18;
             plot.LineWidth       = 2.5;
             plot.LineStyle       = '-'; 
             plot.Colors          = {
@@ -128,19 +128,18 @@ classdef nnfPlot < handle
                                    };
             
             plot.AxisColor       = [0.0 0.0 0.0];
-            plot.AxisLineWidth   = 1.5;
-            plot.XMinorTick      = 'on';
-            plot.YMinorTick      = 'on';
-            plot.ZMinorTick      = 'on';
+            plot.AxisLineWidth   = 1;
+            plot.XMinorTick      = 'off';
+            plot.YMinorTick      = 'off';
+            plot.ZMinorTick      = 'off';
             plot.TickDir         = 'in';
-            plot.TickLength      = [.02 .02];
+            plot.TickLength      = [.01 .01];
             plot.XMinorGrid      = 'off';
             plot.YMinorGrid      = 'off';
             plot.ZMinorGrid      = 'off';
             plot.LegendBox       = 'off';
             plot.LegendBoxColor  = [1,1,1];
             plot.LegendTextColor = [0,0,0];
-            plot.SkippedPoint    = 1;
             plot.Markers         = '';            
 
             plot.Resolution      = 600;
@@ -158,7 +157,6 @@ classdef nnfPlot < handle
         LineStyle
         LineCount
         Markers
-        MarkerSpacing
         SkippedPoint
         Colors
         AxisColor
@@ -211,7 +209,7 @@ classdef nnfPlot < handle
 
     % Private properties
     % properties
-    properties (Hidden, Access = private)
+    properties (Hidden = true)
         
         % Handles
         hfig        % Figure
@@ -258,6 +256,7 @@ classdef nnfPlot < handle
             % To assign fig handle
             pdata = {};
             self.figName = ['Untitled_', datestr(datetime('now')), '.fig'];
+            fromFile = 0;
             if nargin == 0                                 % Empty plot
                 self.hfig = gcf;
                 self.holdLines = false;
@@ -270,6 +269,7 @@ classdef nnfPlot < handle
                     open(varargin{1});
                     self.figName = varargin{1};
                     self.hfig = gcf;
+                    fromFile = 1;
                 else
                     pdata{1} = varargin{1};
                 end
@@ -356,7 +356,9 @@ classdef nnfPlot < handle
             
             % get the self handles
             self.hp = get(self.haxes, 'Children');
-            self.hp = (flipud(self.hp));
+            % if (fromFile == 0)
+                self.hp = (flipud(self.hp));
+            % end
             % the order is reversed, correct it
             
             self.updateData();
@@ -398,6 +400,7 @@ classdef nnfPlot < handle
         batchWidth(self, plotNum, widthset);
         batchStyle(self, plotNum, styleset);
         batchMarker(self, plotNum, markerset);
+        batchMarkerSize(self, plotNum, mksize);
         batchCol(self, plotNum, colset);
         colMap(self, plotNum, cmap);
         [x, y] = extData(self, plotNum);
@@ -631,7 +634,11 @@ classdef nnfPlot < handle
         
         function set.XLabel(self, XLabel)
             if iscell(XLabel)
-                set(self.hxlabel, 'String', ['$', XLabel{1}, '$ $[\mathrm{', XLabel{2}, '}$]'], 'Interpreter', 'latex');
+                if (isempty(XLabel{2}))
+                    set(self.hxlabel, 'String', ['$', XLabel{1}, '$'], 'Interpreter', 'latex');
+                else
+                    set(self.hxlabel, 'String', ['$', XLabel{1}, '$ $[\mathrm{', XLabel{2}, '}$]'], 'Interpreter', 'latex');
+                end
             else
                 set(self.hxlabel, 'String', XLabel, 'Interpreter', 'latex');
             end
@@ -643,7 +650,11 @@ classdef nnfPlot < handle
 
         function set.YLabel(self, YLabel)
             if iscell(YLabel)
-                set(self.hylabel, 'String', ['$', YLabel{1}, '$ $[\mathrm{', YLabel{2}, '}$]'], 'Interpreter', 'latex');
+                if (isempty(YLabel{2}))
+                    set(self.hylabel, 'String', ['$', YLabel{1}, '$'], 'Interpreter', 'latex');
+                else
+                    set(self.hylabel, 'String', ['$', YLabel{1}, '$ $[\mathrm{', YLabel{2}, '}$]'], 'Interpreter', 'latex');
+                end
             else
                 set(self.hylabel, 'String', YLabel, 'Interpreter', 'latex');
             end
